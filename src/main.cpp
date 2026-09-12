@@ -2,6 +2,8 @@
 #include <Adafruit_NeoPixel.h>
 
 #define ADC_PIN 0 // GPIO Pin input ADC is attached to
+#define ADC_AVERAGE 30  // Number of samples to average the ADC over
+#define ADC_DELAY 100   // Number of ms to delay between ADC samples
 
 #define PIN_NEOPIXEL 8  // Change this to your board's NeoPixel pin (e.g., 48 on some ESP32-S3 boards)
 #define NUM_PIXELS 1     // Number of LEDs
@@ -176,9 +178,14 @@ void loop() {
   }
 
   //Read ADC and pass to zigbee
- uint16_t adc;
+ uint16_t adc = 0;
  float percent;
- adc = analogRead(ADC_PIN);
+ for (int i = 0; i < ADC_AVERAGE; i++) {
+  adc = adc + analogRead(ADC_PIN);
+  adc = adc / ADC_AVERAGE;
+  delay(ADC_DELAY);
+ }
+ 
  //percent = adc * (4095 / ADC_VOLT_MAX);
  percent = ((float)adc / 4095) * 100;
  Serial.print(adc);
