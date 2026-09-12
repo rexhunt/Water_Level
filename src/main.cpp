@@ -11,12 +11,12 @@ Adafruit_NeoPixel pixels(NUM_PIXELS, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
 #endif
 
 #include "Zigbee.h"
-/* Zigbee light bulb configuration */
-#define ZIGBEE_LIGHT_ENDPOINT 10
+/* Zigbee Analog configuration */
+#define ZIGBEE_ANALOG_ENDPOINT 1
 
 uint8_t button = BOOT_PIN;
 
-ZigbeeLight zbLight = ZigbeeLight(ZIGBEE_LIGHT_ENDPOINT);
+ZigbeeAnalog zbAnalog = ZigbeeAnalog(ZIGBEE_ANALOG_ENDPOINT);
 
 /*Create separate task for controlling Onboard LED
   This allows delay without affecting other parts of loop()
@@ -107,14 +107,20 @@ void setup() {
   xQueueOverwrite(LBlue, &colour);
 
   //Optional: set Zigbee device name and model
-  zbLight.setManufacturerAndModel("RexO", "ZBLightBulb");
+  zbAnalog.setManufacturerAndModel("RexO", "ZBTankLevel");
 
   // Set callback function for light change
-  zbLight.onLightChange(setLED);
+  //zbLight.onLightChange(setLED);
+
+  //Set Analog level information for Zigbee
+  zbAnalog.addAnalogInput();
+  zbAnalog.setAnalogInputApplication(ESP_ZB_ZCL_AI_PERCENTAGE_OTHER); //Not sure how to set this yet
+  zbAnalog.setAnalogInputDescription("Tank Level %");
+  zbAnalog.setAnalogInputResolution(0.1);
   
   //Add endpoint to Zigbee Core
-  Serial.println("Adding ZigbeeLight endpoint to Zigbee Core");
-  Zigbee.addEndpoint(&zbLight);
+  Serial.println("Adding ZigbeeAnalog endpoint to Zigbee Core");
+  Zigbee.addEndpoint(&zbAnalog);
 
   // When all EPs are registered, start Zigbee. By default acts as ZIGBEE_END_DEVICE
   if (!Zigbee.begin()) {
@@ -129,6 +135,10 @@ void setup() {
   }
   Serial.println();
 
+  //Report analog input
+  //zbAnalog.setAnalogInputReporting(0, 30, 10);  // report every 30 seconds if value changes by 10
+  zbAnalog.setAnalogInputReporting(0, 30, 0.1);  
+
   Serial.println("setup() finished");
 }
 
@@ -142,8 +152,31 @@ void loop() {
     Serial.println(" LED Flash Count");
     //Make the green LED change brightness
     xQueueOverwrite(LGreen, &counts);
-    delay(500);
+    //delay(500); //Replaced by delay at end of loop 
+    //Update zigbee level to number of counts
+    zbAnalog.setAnalogInput(counts);
+    //zbAnalog.reportAnalogInput();
   }
+
+  // Checking button for factory reset and reporting
+  if (digitalRead(button) == LOW) {  // Push button pressed
+    // Key debounce handling
+    delay(100);
+    int startTime = millis();
+    while (digitalRead(button) == LOW) {
+      delay(50);
+      if ((millis() - startTime) > 3000) {
+        // If key pressed for more than 3secs, factory reset Zigbee and reboot
+        Serial.println("Resetting Zigbee to factory and rebooting in 1s.");
+        delay(1000);
+        Zigbee.factoryReset();
+      }
+    }
+  }
+ 
+
+  //Delay to slow down loop a bit
+  delay(500);
 }
 
 // put function definitions here:
