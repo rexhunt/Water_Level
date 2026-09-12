@@ -11,6 +11,12 @@ Adafruit_NeoPixel pixels(NUM_PIXELS, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
 #endif
 
 #include "Zigbee.h"
+/* Zigbee light bulb configuration */
+#define ZIGBEE_LIGHT_ENDPOINT 10
+
+uint8_t button = BOOT_PIN;
+
+ZigbeeLight zbLight = ZigbeeLight(ZIGBEE_LIGHT_ENDPOINT);
 
 /*Create separate task for controlling Onboard LED
   This allows delay without affecting other parts of loop()
@@ -60,6 +66,12 @@ void LED_Code(void * parameter) {
   }
 }
 
+//Set LED by Zigbee
+void setLED(bool value) {
+  uint8_t intensity = 0;
+  if (value){ intensity = 100;}
+  xQueueOverwrite(LRed, &intensity);
+}
 
 // put function declarations here:
 
@@ -93,6 +105,29 @@ void setup() {
   //Set initial LED Colour
   uint8_t colour = 10;
   xQueueOverwrite(LBlue, &colour);
+
+  //Optional: set Zigbee device name and model
+  zbLight.setManufacturerAndModel("RexO", "ZBLightBulb");
+
+  // Set callback function for light change
+  zbLight.onLightChange(setLED);
+  
+  //Add endpoint to Zigbee Core
+  Serial.println("Adding ZigbeeLight endpoint to Zigbee Core");
+  Zigbee.addEndpoint(&zbLight);
+
+  // When all EPs are registered, start Zigbee. By default acts as ZIGBEE_END_DEVICE
+  if (!Zigbee.begin()) {
+    Serial.println("Zigbee failed to start!");
+    Serial.println("Rebooting...");
+    ESP.restart();
+  }
+  Serial.println("Connecting to network");
+  while (!Zigbee.connected()) {
+    Serial.print(".");
+    delay(100);
+  }
+  Serial.println();
 
   Serial.println("setup() finished");
 }
