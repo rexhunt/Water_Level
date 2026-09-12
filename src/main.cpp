@@ -1,6 +1,8 @@
 #include <Arduino.h>
 #include <Adafruit_NeoPixel.h>
 
+#define ADC_PIN 0 // GPIO Pin input ADC is attached to
+
 #define PIN_NEOPIXEL 8  // Change this to your board's NeoPixel pin (e.g., 48 on some ESP32-S3 boards)
 #define NUM_PIXELS 1     // Number of LEDs
 
@@ -154,8 +156,7 @@ void loop() {
     xQueueOverwrite(LGreen, &counts);
     //delay(500); //Replaced by delay at end of loop 
     //Update zigbee level to number of counts
-    zbAnalog.setAnalogInput(counts);
-    //zbAnalog.reportAnalogInput();
+    //zbAnalog.setAnalogInput(counts);
   }
 
   // Checking button for factory reset and reporting
@@ -173,7 +174,18 @@ void loop() {
       }
     }
   }
- 
+
+  //Read ADC and pass to zigbee
+ uint16_t adc;
+ float percent;
+ adc = analogRead(ADC_PIN);
+ //percent = adc * (4095 / ADC_VOLT_MAX);
+ percent = ((float)adc / 4095) * 100;
+ Serial.print(adc);
+ Serial.print(" ADC Value in counts ");
+ Serial.print(percent);
+ Serial.println("% ADC Value in percent");
+ zbAnalog.setAnalogInput(percent);
 
   //Delay to slow down loop a bit
   delay(500);
