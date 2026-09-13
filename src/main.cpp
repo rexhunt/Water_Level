@@ -77,6 +77,25 @@ void setLED(bool value) {
   xQueueOverwrite(LRed, &intensity);
 }
 
+//Force Zigbee factory reset
+void factoryReset (void){
+// Checking button for factory reset and reporting
+  if (digitalRead(button) == LOW) {  // Push button pressed
+    // Key debounce handling
+    delay(100);
+    int startTime = millis();
+    while (digitalRead(button) == LOW) {
+      delay(50);
+      if ((millis() - startTime) > 3000) {
+        // If key pressed for more than 3secs, factory reset Zigbee and reboot
+        Serial.println("Resetting Zigbee to factory and rebooting in 1s.");
+        delay(1000);
+        Zigbee.factoryReset();
+      }
+    }
+  }
+}
+
 // put function declarations here:
 
 void setup() {
@@ -109,6 +128,8 @@ void setup() {
   //Set initial LED Colour
   uint8_t colour = 10;
   xQueueOverwrite(LBlue, &colour);
+
+  factoryReset(); //See if the button has been held long enough to require a zigbee factory reset
 
   //Optional: set Zigbee device name and model
   zbAnalog.setManufacturerAndModel("RexO", "ZBTankLevel");
@@ -161,21 +182,7 @@ void loop() {
     //zbAnalog.setAnalogInput(counts);
   }
 
-  // Checking button for factory reset and reporting
-  if (digitalRead(button) == LOW) {  // Push button pressed
-    // Key debounce handling
-    delay(100);
-    int startTime = millis();
-    while (digitalRead(button) == LOW) {
-      delay(50);
-      if ((millis() - startTime) > 3000) {
-        // If key pressed for more than 3secs, factory reset Zigbee and reboot
-        Serial.println("Resetting Zigbee to factory and rebooting in 1s.");
-        delay(1000);
-        Zigbee.factoryReset();
-      }
-    }
-  }
+  factoryReset(); //See if the button has been held long enough to require a zigbee factory reset
 
   //Read ADC and pass to zigbee
  uint16_t adc = 0;
